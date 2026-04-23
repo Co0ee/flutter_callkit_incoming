@@ -31,7 +31,7 @@ public class SwiftFlutterCallkitIncomingPlugin: NSObject, FlutterPlugin, CXProvi
     
     private var callManager: CallManager
     
-    private var sharedProvider: CXProvider? = nil
+    public var sharedProvider: CXProvider? = nil
     
     private var outgoingCall : Call?
     private var answerCall : Call?
