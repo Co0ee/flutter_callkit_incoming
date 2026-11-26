@@ -17,6 +17,8 @@ class CallkitIncomingBroadcastReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "CallkitIncomingReceiver"
+        private const val META_DISABLE_TELECOM =
+            "com.hiennv.flutter_callkit_incoming.DISABLE_TELECOM"
         var silenceEvents = false
 
         fun getIntent(context: Context, action: String, data: Bundle?) =
@@ -113,9 +115,29 @@ class CallkitIncomingBroadcastReceiver : BroadcastReceiver() {
         return FlutterCallkitIncomingPlugin.getInstance()?.getCallkitNotificationManager()
     }
 
+    /**
+     * Host apps that do their own call audio routing can opt out of self-managed
+     * Telecom calls with:
+     *   <meta-data android:name="com.hiennv.flutter_callkit_incoming.DISABLE_TELECOM"
+     *              android:value="true"/>
+     * While Telecom hosts a call it controls the audio route, so AudioManager
+     * speaker/Bluetooth routing from the app is ignored.
+     */
+    private fun isTelecomDisabled(context: Context): Boolean = try {
+        context.packageManager
+            .getApplicationInfo(context.packageName, PackageManager.GET_META_DATA)
+            .metaData?.getBoolean(META_DISABLE_TELECOM, false) == true
+    } catch (e: Exception) {
+        false
+    }
+
     @SuppressLint("MissingPermission")
     private fun registerTelecomIncomingCall(context: Context, data: Bundle) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (isTelecomDisabled(context)) {
+            Log.d(TAG, "Telecom disabled by host app — incoming call not registered")
+            return
+        }
         val parsed = try {
             Data.fromBundle(data)
         } catch (e: Exception) {
@@ -163,6 +185,10 @@ class CallkitIncomingBroadcastReceiver : BroadcastReceiver() {
     @SuppressLint("MissingPermission")
     private fun registerTelecomOutgoingCall(context: Context, data: Bundle) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (isTelecomDisabled(context)) {
+            Log.d(TAG, "Telecom disabled by host app — outgoing call not registered")
+            return
+        }
         val parsed = try {
             Data.fromBundle(data)
         } catch (e: Exception) {
